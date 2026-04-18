@@ -1,0 +1,64 @@
+"""CLI commands for snapshot management."""
+
+import click
+from envctl.config import Config
+from envctl.snapshot import take_snapshot, list_snapshots, restore_snapshot, delete_snapshot, SnapshotError
+
+
+@click.group("snapshot")
+def snapshot_group():
+    """Manage environment snapshots."""
+
+
+@snapshot_group.command("take")
+@click.argument("env")
+@click.option("--label", "-l", default="", help="Optional label for the snapshot.")
+def take_cmd(env: str, label: str):
+    """Take a snapshot of ENV profile."""
+    config = Config()
+    try:
+        entry = take_snapshot(config, env, label or None)
+        click.echo(f"Snapshot taken for '{env}' at {entry['timestamp']}.")
+        if entry["label"]:
+            click.echo(f"  Label: {entry['label']}")
+    except SnapshotError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
+
+
+@snapshot_group.command("list")
+@click.option("--env", "-e", default=None, help="Filter by environment name.")
+def list_cmd(env):
+    """List all snapshots."""
+    snapshots = list_snapshots(env=env)
+    if not snapshots:
+        click.echo("No snapshots found.")
+        return
+    for i, s in enumerate(snapshots):
+        label = f" [{s['label']}]" if s["label"] else ""
+        click.echo(f"{i:>3}  {s['env']:<12} {s['timestamp']}{label}  ({len(s['vars'])} vars)")
+
+
+@snapshot_group.command("restore")
+@click.argument("index", type=int)
+def restore_cmd(index: int):
+    """Restore snapshot by INDEX."""
+    config = Config()
+    try:
+        entry = restore_snapshot(config, index)
+        click.echo(f"Restored snapshot {index} for '{entry['env']}' (taken {entry['timestamp']}).")
+    except SnapshotError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
+
+
+@snapshot_group.command("delete")
+@click.argument("index", type=int)
+def delete_cmd(index: int):
+    """Delete snapshot by INDEX."""
+    try:
+        delete_snapshot(index)
+        click.echo(f"Snapshot {index} deleted.")
+    except SnapshotError as e:
+        click.echo(f"Error: {e}", err=True)
+        raise SystemExit(1)
