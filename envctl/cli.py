@@ -1,3 +1,4 @@
+"""Main CLI entry-point for envctl."""
 import click
 from envctl.config import Config
 from envctl.cli_sync import sync_group
@@ -14,6 +15,8 @@ from envctl.cli_promote import promote_group
 from envctl.cli_template import template_group
 from envctl.cli_mask import mask_group
 from envctl.cli_history import history_group
+from envctl.cli_watch import watch_group
+from envctl.cli_rollback import rollback_group
 
 
 @click.group()
@@ -23,57 +26,61 @@ def cli():
 
 @cli.command()
 @click.argument("env")
-def use(env):
-    """Switch active environment."""
-    cfg = Config()
+@click.option("--config", "config_path", default="envctl.json", show_default=True)
+def use(env: str, config_path: str):
+    """Switch the active environment."""
+    cfg = Config(config_path)
     try:
         cfg.set_active_env(env)
         cfg.save()
-        click.echo(f"Switched to {env}")
-    except ValueError as e:
-        click.echo(str(e), err=True)
-        raise SystemExit(1)
+        click.echo(f"Switched to environment: {env}")
+    except ValueError as exc:
+        raise click.ClickException(str(exc))
 
 
 @cli.command()
-def status():
+@click.option("--config", "config_path", default="envctl.json", show_default=True)
+def status(config_path: str):
     """Show active environment."""
-    cfg = Config()
-    click.echo(f"Active env: {cfg.get_active_env()}")
+    cfg = Config(config_path)
+    click.echo(f"Active environment: {cfg.get_active_env()}")
 
 
 @cli.command("set")
 @click.argument("key")
 @click.argument("value")
-@click.option("--env", default=None)
-def set_var(key, value, env):
+@click.option("--profile", default=None)
+@click.option("--config", "config_path", default="envctl.json", show_default=True)
+def set_var(key: str, value: str, profile: str, config_path: str):
     """Set a variable in a profile."""
-    cfg = Config()
-    profile = env or cfg.get_active_env()
-    cfg.set_profile_var(profile, key, value)
+    cfg = Config(config_path)
+    env = profile or cfg.get_active_env()
+    data = cfg.get_profile(env) or {}
+    data[key] = value
+    cfg.set_profile(env, data)
     cfg.save()
-    click.echo(f"Set {key} in {profile}")
+    click.echo(f"Set {key} in [{env}]")
 
 
 @cli.command("list")
-@click.option("--env", default=None)
-def list_vars(env):
+@click.option("--profile", default=None)
+@click.option("--config", "config_path", default="envctl.json", show_default=True)
+def list_vars(profile: str, config_path: str):
     """List variables in a profile."""
-    cfg = Config()
-    profile = env or cfg.get_active_env()
-    data = cfg.get_profile(profile)
+    cfg = Config(config_path)
+    env = profile or cfg.get_active_env()
+    data = cfg.get_profile(env) or {}
     if not data:
-        click.echo("(empty)")
+        click.echo(f"No variables in [{env}].")
         return
     for k, v in data.items():
         click.echo(f"{k}={v}")
 
 
-for grp in [sync_group, audit_group, snapshot_group, import_group, compare_group,
-            rename_group, copy_group, search_group, tag_group, pin_group,
-            promote_group, template_group, mask_group, history_group]:
+for grp in [
+    sync_group, audit_group, snapshot_group, import_group, compare_group,
+    rename_group, copy_group, search_group, tag_group, pin_group,
+    promote_group, template_group, mask_group, history_group, watch_group,
+    rollback_group,
+]:
     cli.add_command(grp)
-
-
-if __name__ == "__main__":
-    cli()
