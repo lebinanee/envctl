@@ -19,15 +19,27 @@ def rename_key(
     """Rename *old_key* to *new_key* in one or all profiles.
 
     Returns a mapping of profile -> whether the rename happened.
+
+    Raises:
+        RenameError: If *new_key* already exists in a target profile, or if
+            a specific *profile* is given but does not exist in the config.
     """
     validate_key(old_key)
     validate_key(new_key)
 
-    profiles = [profile] if profile else list(config.data.get("profiles", {}).keys())
+    all_profiles: dict = config.data.get("profiles", {})
+
+    if profile:
+        if profile not in all_profiles:
+            raise RenameError(f"Profile '{profile}' does not exist")
+        profiles = [profile]
+    else:
+        profiles = list(all_profiles.keys())
+
     results: dict[str, bool] = {}
 
     for prof in profiles:
-        env = config.data.get("profiles", {}).get(prof, {})
+        env = all_profiles.get(prof, {})
         if old_key not in env:
             results[prof] = False
             continue
