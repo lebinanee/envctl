@@ -67,3 +67,16 @@ def test_import_cmd_no_vars(runner, tmp_path):
         result = runner.invoke(import_group, ["file", "local", str(env_file)])
     assert result.exit_code == 0
     assert "No variables imported" in result.output
+
+
+def test_import_cmd_overwrite(runner, tmp_path):
+    """Test that --overwrite replaces existing variables instead of skipping them."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("FOO=newval\n")
+    cfg = _mock_config({"FOO": "old"})
+    with patch("envctl.cli_import.Config", return_value=cfg):
+        result = runner.invoke(import_group, ["file", "local", str(env_file), "--overwrite"])
+    assert result.exit_code == 0
+    assert "Skipped" not in result.output
+    cfg.set_var.assert_called_once()
+    cfg.save.assert_called_once()
