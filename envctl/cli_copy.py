@@ -21,12 +21,21 @@ def copy_cmd(src, dst, key, overwrite, config_path):
         cfg = Config(config_path)
         keys = list(key) if key else None
         result = copy_keys(cfg, src, dst, keys=keys, overwrite=overwrite)
-        if result["copied"]:
-            click.echo(f"Copied: {', '.join(result['copied'])}")
-        if result["skipped"]:
-            click.echo(f"Skipped (already exist): {', '.join(result['skipped'])}")
-        if not result["copied"] and not result["skipped"]:
-            click.echo("Nothing to copy.")
+        _print_copy_result(result)
     except CopyError as e:
         click.echo(f"Error: {e}", err=True)
         raise SystemExit(1)
+
+
+def _print_copy_result(result):
+    """Print a human-readable summary of a copy operation result.
+
+    Args:
+        result: A dict with 'copied' and 'skipped' lists returned by copy_keys.
+    """
+    if result["copied"]:
+        click.echo(f"Copied: {', '.join(result['copied'])}")
+    if result["skipped"]:
+        click.echo(f"Skipped (already exist): {', '.join(result['skipped'])}")
+    if not result["copied"] and not result["skipped"]:
+        click.echo("Nothing to copy.")
