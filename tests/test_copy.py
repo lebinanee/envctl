@@ -66,3 +66,13 @@ def test_copy_persists(tmp_path):
     copy_keys(cfg, "local", "staging", keys=["PORT"])
     cfg2 = Config(cfg.path)
     assert cfg2.get_profile("staging")["PORT"] == "5432"
+
+
+def test_copy_overwrite_updates_value(tmp_path):
+    """Ensure overwrite=True replaces an existing key's value in the destination."""
+    cfg = _base(tmp_path)
+    # 'DB' exists in staging as 'staging-db'; local has 'localhost'
+    result = copy_keys(cfg, "local", "staging", keys=["DB"], overwrite=True)
+    assert "DB" in result["copied"]
+    assert "DB" not in result.get("skipped", [])
+    assert cfg.get_profile("staging")["DB"] == "localhost"
