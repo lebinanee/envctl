@@ -16,6 +16,10 @@ def ttl_group():
 @click.pass_context
 def set_cmd(ctx, profile: str, key: str, seconds: int):
     """Set a TTL on a key in a profile."""
+    if seconds <= 0:
+        click.echo("Error: TTL must be a positive number of seconds.", err=True)
+        ctx.exit(1)
+        return
     cfg = Config()
     try:
         entry = ttl_mod.set_ttl(cfg, profile, key, seconds)
@@ -64,3 +68,4 @@ def purge_cmd(profile: str):
     else:
         for k in removed:
             click.echo(f"Removed expired key: {k}")
+        click.echo(f"Purged {len(removed)} expired key(s) from profile '{profile}'.")
